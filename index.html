@@ -1,159 +1,199 @@
-<!-- index.html -->
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Y2K Mini Games — Demo</title>
-<style>
-  /* 전체 바탕: Y2K 느낌을 위해 그라데이션 + 패턴 느낌 */
-  body,html{height:100%;margin:0;font-family:Verdana, Geneva, sans-serif}
-  .desktop{
-    height:100%;
-    background: linear-gradient(135deg,#99f 0%, #cff 50%, #fff 100%);
-    background-image: radial-gradient(circle at 10% 10%, rgba(255,255,255,0.15) 0, transparent 20%);
-    display:flex;align-items:flex-start;padding:24px;gap:20px;flex-wrap:wrap;
+import React, { useState } from 'react';
+
+// Simple Y2K-style desktop shell with icons that open popup windows.
+// Tailwind CSS is expected to be available in the project.
+
+export default function App() {
+  const apps = [
+    { id: 'pet', title: '디지털 펫', icon: '/assets/icons/pet.png' },
+    { id: 'paint', title: '그림판', icon: '/assets/icons/paint.png' },
+    { id: 'piano', title: '피아노', icon: '/assets/icons/piano.png' },
+    { id: 'cards', title: '카드 짝맞추기', icon: '/assets/icons/cards.png' },
+    { id: 'dino', title: '공룡게임', icon: '/assets/icons/dino.png' }
+  ];
+
+  const [openWindows, setOpenWindows] = useState([]);
+
+  function openApp(app) {
+    // prevent duplicates: bring to front if already open
+    setOpenWindows(prev => {
+      if (prev.find(w => w.id === app.id)) {
+        // bump zIndex by moving to end
+        return [...prev.filter(w => w.id !== app.id), { ...app }];
+      }
+      return [...prev, { ...app }];
+    });
   }
-  .icon{
-    width:84px;height:84px;background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
-    cursor:pointer;user-select:none;
+
+  function closeApp(id) {
+    setOpenWindows(prev => prev.filter(w => w.id !== id));
   }
-  .icon img{width:48px;height:48px;object-fit:contain}
-  .label{font-size:12px;margin-top:6px;color:#222}
 
-  /* 팝업(모달) */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:50}
-  .window{
-    width:520px;height:360px;border-radius:8px;background:linear-gradient(#fff,#eef);
-    box-shadow:0 20px 50px rgba(0,0,0,0.45);position:relative;overflow:hidden;
-    border:4px solid #aaf;
-  }
-  .win-bar{height:36px;background:linear-gradient(#66f,#99f);display:flex;align-items:center;padding:6px 10px;color:#fff}
-  .win-title{flex:1;font-weight:bold}
-  .win-close{cursor:pointer;padding:4px 8px;border-radius:4px;background:rgba(255,255,255,0.12)}
-  .win-body{padding:10px;background:linear-gradient(180deg,#dff 0,#f7fbff 100%);height:calc(100% - 36px);display:flex;align-items:center;justify-content:center;flex-direction:column}
+  return (
+    <div className="w-screen h-screen bg-cover bg-center" style={{ backgroundImage: "url('/assets/bg/y2k_desktop.jpg')" }}>
+      {/* Top taskbar */}
+      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-auto">
+        <div className="flex items-center gap-3">
+          <button className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-2xl text-sm">Start</button>
+          <div className="flex gap-2">
+            {apps.slice(0,3).map(a => (
+              <button key={a.id} onClick={() => openApp(a)} className="px-2 py-1 rounded text-xs bg-white/10">{a.title}</button>
+            ))}
+          </div>
+        </div>
+        <div className="text-xs bg-white/10 px-2 py-1 rounded">11:32 PM</div>
+      </div>
 
-  /* 게임 UI */
-  canvas{background:linear-gradient(#000,#1a1a3a);border-radius:6px;display:block}
-  .score{margin-top:8px;font-weight:bold}
-</style>
-</head>
-<body>
-<div class="desktop" id="desktop">
-  <div class="icon" data-app="click-dot">
-    <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect rx='10' width='64' height='64' fill='%23fde68a'/><circle cx='32' cy='28' r='12' fill='%23f97316'/></svg>" alt="icon">
-    <div class="label">ClickDot</div>
-  </div>
+      {/* Icons on desktop */}
+      <div className="p-8 grid grid-cols-2 gap-6 w-[320px]">
+        {apps.map(app => (
+          <div key={app.id} className="flex flex-col items-center cursor-pointer select-none" onDoubleClick={() => openApp(app)} onClick={() => openApp(app)}>
+            <img src={app.icon} alt={app.title} className="w-16 h-16 mb-2" />
+            <div className="text-xs text-white text-center drop-shadow-md">{app.title}</div>
+          </div>
+        ))}
+      </div>
 
-  <!-- (추가 아이콘을 여기에 배치) -->
-</div>
+      {/* Open windows area */}
+      {openWindows.map((w, idx) => (
+        <Window key={w.id} z={100 + idx} app={w} onClose={() => closeApp(w.id)} />
+      ))}
 
-<!-- 팝업 오버레이 -->
-<div class="overlay" id="overlay" role="dialog" aria-modal="true">
-  <div class="window" role="document">
-    <div class="win-bar">
-      <div class="win-title" id="winTitle">ClickDot</div>
-      <div class="win-close" id="winClose">✕</div>
+      {/* Footer hint */}
+      <div className="absolute left-6 bottom-24 text-sm text-white/80">아이콘을 클릭하거나 더블클릭하여 창을 엽니다.</div>
     </div>
-    <div class="win-body">
-      <canvas id="gameCanvas" width="480" height="260"></canvas>
-      <div class="score" id="score">Score: 0</div>
+  );
+}
+
+function Window({ app, onClose, z }) {
+  // Simple floating window centered with header
+  return (
+    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 w-[640px] max-w-[90%] bg-white/95 rounded-lg shadow-2xl overflow-hidden" style={{ zIndex: z }}>
+      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-sky-300 to-fuchsia-300">
+        <div className="flex items-center gap-2">
+          <img src={app.icon} alt="icon" className="w-6 h-6" />
+          <div className="font-semibold text-sm">{app.title}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/60 text-sm">✕</button>
+        </div>
+      </div>
+      <div className="p-4 min-h-[320px] bg-white">
+        <GamePlaceholder id={app.id} />
+      </div>
     </div>
-  </div>
-</div>
+  );
+}
 
-<script>
-/* desktop + popup handling */
-const desktop = document.getElementById('desktop');
-const overlay = document.getElementById('overlay');
-const winClose = document.getElementById('winClose');
-const winTitle = document.getElementById('winTitle');
+function GamePlaceholder({ id }) {
+  // Placeholders for each mini-game. We'll implement each later.
+  switch (id) {
+    case 'pet':
+      return (
+        <div>
+          <h3 className="text-lg font-bold">디지털 펫 (초기 버전)</h3>
+          <p className="mt-2">먹이주기와 놀아주기 버튼이 있는 간단한 상호작용 자리입니다. 추후 상태 저장(localStorage)과 애니메이션 추가 예정.</p>
+          <div className="mt-4 flex gap-3">
+            <button className="px-3 py-1 rounded bg-blue-500 text-white">먹이주기</button>
+            <button className="px-3 py-1 rounded bg-green-500 text-white">놀아주기</button>
+          </div>
+        </div>
+      );
 
-desktop.addEventListener('click', (e) => {
-  const icon = e.target.closest('.icon');
-  if (!icon) return;
-  const app = icon.dataset.app;
-  if (app === 'click-dot') {
-    winTitle.textContent = 'ClickDot — 미니게임';
-    openWindow();
-    startClickDotGame();
+    case 'paint':
+      return (
+        <div>
+          <h3 className="text-lg font-bold">그림판</h3>
+          <p className="mt-2">캔버스와 브러시 크기/색상 컨트롤이 들어갈 자리입니다. 사용자는 업로드가 아닌 미리 정해진 이미지를 불러와 작업합니다.</p>
+          <div className="mt-4 border rounded p-2 min-h-[200px] flex items-center justify-center">Canvas Placeholder</div>
+        </div>
+      );
+
+    case 'piano':
+      return (
+        <div>
+          <h3 className="text-lg font-bold">피아노</h3>
+          <p className="mt-2">키를 클릭하면 소리가 납니다. 간단한 시퀀스 녹음/재생 기능 예정.</p>
+          <div className="mt-4 flex gap-2">{Array.from({ length: 7 }).map((_, i) => <div key={i} className="w-10 h-24 border">Key</div>)}</div>
+        </div>
+      );
+
+    case 'cards':
+      return (
+        <div>
+          <h3 className="text-lg font-bold">카드 짝맞추기</h3>
+          <p className="mt-2">4x4 그리드로 카드 뒤집기 로직이 들어갑니다. 정해진 이미지 세트로 플레이합니다.</p>
+          <div className="mt-4 grid grid-cols-4 gap-2">{Array.from({ length: 16 }).map((_, i) => (
+            <div key={i} className="h-20 bg-slate-200 rounded flex items-center justify-center">Card</div>
+          ))}</div>
+        </div>
+      );
+
+    case 'dino':
+      return (
+        <div>
+          <h3 className="text-lg font-bold">공룡게임</h3>
+          <p className="mt-2">런닝 게임 플레이어와 점프/장애물 로직 자리입니다. 간단한 키보드 이벤트로 조작합니다.</p>
+          <div className="mt-4 border rounded p-2 min-h-[120px] flex items-center justify-center">Game Canvas Placeholder</div>
+        </div>
+      );
+
+    default:
+      return <div>알 수 없는 앱</div>;
   }
-});
-
-winClose.addEventListener('click', closeWindow);
-overlay.addEventListener('click', (e) => {
-  if (e.target === overlay) closeWindow();
-});
-
-function openWindow(){ overlay.style.display='flex'; }
-function closeWindow(){ overlay.style.display='none'; /* stop game if needed */ stopGame(); }
-
-/* ======== 간단한 캔버스 미니게임: 움직이는 점을 클릭하자 ======== */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let scoreEl = document.getElementById('score');
-
-let dot = { x: 80, y: 80, r: 14, vx: 2.2, vy: 1.6 };
-let animId = null, score = 0, running = false;
-
-function resetDot(){
-  dot.x = 40 + Math.random() * (canvas.width - 80);
-  dot.y = 40 + Math.random() * (canvas.height - 80);
-  dot.vx = 1.4 + Math.random()*2.2;
-  dot.vy = 1.2 + Math.random()*2.0;
-  dot.r = 10 + Math.random()*12;
-}
-function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  // 점 그림자
-  ctx.beginPath();
-  ctx.ellipse(dot.x+3, dot.y+6, dot.r*0.9, dot.r*0.4, 0, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-  // 점
-  ctx.beginPath();
-  ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI*2);
-  const grd = ctx.createRadialGradient(dot.x-dot.r/3, dot.y-dot.r/3, dot.r*0.2, dot.x, dot.y, dot.r);
-  grd.addColorStop(0, '#fffb7d'); grd.addColorStop(1, '#ff6b6b');
-  ctx.fillStyle = grd; ctx.fill();
-}
-function step(){
-  dot.x += dot.vx; dot.y += dot.vy;
-  if (dot.x - dot.r < 0 || dot.x + dot.r > canvas.width) dot.vx *= -1;
-  if (dot.y - dot.r < 0 || dot.y + dot.r > canvas.height) dot.vy *= -1;
-  draw();
-  animId = requestAnimationFrame(step);
 }
 
-canvas.addEventListener('click', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const dist2 = (mx-dot.x)*(mx-dot.x) + (my-dot.y)*(my-dot.y);
-  if (dist2 <= dot.r*dot.r) {
-    score += 1;
-    scoreEl.textContent = 'Score: ' + score;
-    // 효과: 작아졌다가 원래로
-    dot.r = Math.max(6, dot.r - 3);
-    // 위치 재설정(살짝 튕김)
-    dot.vx *= 1.15; dot.vy *= 1.15;
-    resetDot();
-  }
-});
+/*
+README / Assets list
 
-/* start / stop */
-function startClickDotGame(){
-  if (running) return;
-  running = true;
-  score = 0; scoreEl.textContent = 'Score: 0';
-  resetDot();
-  animId = requestAnimationFrame(step);
-}
-function stopGame(){
-  running = false;
-  if (animId) cancelAnimationFrame(animId);
-  animId = null;
-}
-</script>
-</body>
-</html>
+아래는 이 프로젝트의 초기 자산 목록과 권장 캔버스(이미지) 크기입니다. 디자인 파일을 제작할 때 다음 규격을 권장합니다.
+
+1) 배경 이미지 (데스크탑)
+   - 파일명: /assets/bg/y2k_desktop.jpg
+   - 권장 크기: 1920 x 1080 (JPG 또는 PNG)
+   - 설명: 전체 배경으로 사용. 패턴이나 그라디언트 포함 가능.
+
+2) 앱 아이콘 (각 앱)
+   - 파일명 예: /assets/icons/pet.png, paint.png, piano.png, cards.png, dino.png
+   - 권장 크기: 128 x 128 (PNG, 투명 배경)
+   - 마이크로 버전: 64 x 64 (작게 쓰일 때)
+
+3) 창 헤더에서 사용할 작은 아이콘
+   - 파일명: /assets/icons/pet_small.png ...
+   - 권장 크기: 24 x 24 (PNG)
+
+4) 게임에서 사용할 정해진 이미지 세트 (예: 카드 이미지 세트)
+   - 경로: /assets/games/cards/set1/
+   - 권장 크기: 200 x 200 (PNG) — 카드 이미지
+   - 개수: 최소 8쌍(총 16장)
+
+5) 디지털 펫 스프라이트
+   - 경로: /assets/games/pet/
+   - 권장 크기: 256 x 256 (프레임 단위 또는 단일 이미지)
+   - 애니메이션을 원하면 프레임 시트 또는 여러 파일로 제공
+
+6) 그림판의 기본 템플릿 이미지
+   - 경로: /assets/games/paint/templates/
+   - 권장 크기: 1024 x 768 (PNG)
+   - 설명: 사용자가 불러와서 색칠하거나 수정할 기본 이미지들
+
+7) 공룡게임용 스프라이트(주인공, 장애물, 배경 타일)
+   - 경로: /assets/games/dino/
+   - 권장 크기: 주인공 64x64, 장애물 48x48, 배경 타일 240x120
+
+프로젝트 구조(권장):
+/src
+  /components
+  /pages
+  /styles
+/public
+  /assets
+
+
+다음 단계로 제가 할 일 제안:
+- 각 미니게임의 기본 인터랙션(먹이주기 버튼 → 펫 상태 변화, 카드 뒤집기 로직 등)을 단계별로 구현
+- 로컬 저장(localStorage)으로 상태 유지
+- 키보드/마우스 입력 처리 및 모바일 대응
+
+원하시면 바로 "디지털 펫"의 기본 상태와 먹이주기/놀아주기 로직을 코드로 구현해 드릴게요.
+*/
