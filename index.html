@@ -1,0 +1,159 @@
+<!-- index.html -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Y2K Mini Games — Demo</title>
+<style>
+  /* 전체 바탕: Y2K 느낌을 위해 그라데이션 + 패턴 느낌 */
+  body,html{height:100%;margin:0;font-family:Verdana, Geneva, sans-serif}
+  .desktop{
+    height:100%;
+    background: linear-gradient(135deg,#99f 0%, #cff 50%, #fff 100%);
+    background-image: radial-gradient(circle at 10% 10%, rgba(255,255,255,0.15) 0, transparent 20%);
+    display:flex;align-items:flex-start;padding:24px;gap:20px;flex-wrap:wrap;
+  }
+  .icon{
+    width:84px;height:84px;background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    cursor:pointer;user-select:none;
+  }
+  .icon img{width:48px;height:48px;object-fit:contain}
+  .label{font-size:12px;margin-top:6px;color:#222}
+
+  /* 팝업(모달) */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:50}
+  .window{
+    width:520px;height:360px;border-radius:8px;background:linear-gradient(#fff,#eef);
+    box-shadow:0 20px 50px rgba(0,0,0,0.45);position:relative;overflow:hidden;
+    border:4px solid #aaf;
+  }
+  .win-bar{height:36px;background:linear-gradient(#66f,#99f);display:flex;align-items:center;padding:6px 10px;color:#fff}
+  .win-title{flex:1;font-weight:bold}
+  .win-close{cursor:pointer;padding:4px 8px;border-radius:4px;background:rgba(255,255,255,0.12)}
+  .win-body{padding:10px;background:linear-gradient(180deg,#dff 0,#f7fbff 100%);height:calc(100% - 36px);display:flex;align-items:center;justify-content:center;flex-direction:column}
+
+  /* 게임 UI */
+  canvas{background:linear-gradient(#000,#1a1a3a);border-radius:6px;display:block}
+  .score{margin-top:8px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="desktop" id="desktop">
+  <div class="icon" data-app="click-dot">
+    <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect rx='10' width='64' height='64' fill='%23fde68a'/><circle cx='32' cy='28' r='12' fill='%23f97316'/></svg>" alt="icon">
+    <div class="label">ClickDot</div>
+  </div>
+
+  <!-- (추가 아이콘을 여기에 배치) -->
+</div>
+
+<!-- 팝업 오버레이 -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="window" role="document">
+    <div class="win-bar">
+      <div class="win-title" id="winTitle">ClickDot</div>
+      <div class="win-close" id="winClose">✕</div>
+    </div>
+    <div class="win-body">
+      <canvas id="gameCanvas" width="480" height="260"></canvas>
+      <div class="score" id="score">Score: 0</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* desktop + popup handling */
+const desktop = document.getElementById('desktop');
+const overlay = document.getElementById('overlay');
+const winClose = document.getElementById('winClose');
+const winTitle = document.getElementById('winTitle');
+
+desktop.addEventListener('click', (e) => {
+  const icon = e.target.closest('.icon');
+  if (!icon) return;
+  const app = icon.dataset.app;
+  if (app === 'click-dot') {
+    winTitle.textContent = 'ClickDot — 미니게임';
+    openWindow();
+    startClickDotGame();
+  }
+});
+
+winClose.addEventListener('click', closeWindow);
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay) closeWindow();
+});
+
+function openWindow(){ overlay.style.display='flex'; }
+function closeWindow(){ overlay.style.display='none'; /* stop game if needed */ stopGame(); }
+
+/* ======== 간단한 캔버스 미니게임: 움직이는 점을 클릭하자 ======== */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let scoreEl = document.getElementById('score');
+
+let dot = { x: 80, y: 80, r: 14, vx: 2.2, vy: 1.6 };
+let animId = null, score = 0, running = false;
+
+function resetDot(){
+  dot.x = 40 + Math.random() * (canvas.width - 80);
+  dot.y = 40 + Math.random() * (canvas.height - 80);
+  dot.vx = 1.4 + Math.random()*2.2;
+  dot.vy = 1.2 + Math.random()*2.0;
+  dot.r = 10 + Math.random()*12;
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // 점 그림자
+  ctx.beginPath();
+  ctx.ellipse(dot.x+3, dot.y+6, dot.r*0.9, dot.r*0.4, 0, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  // 점
+  ctx.beginPath();
+  ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI*2);
+  const grd = ctx.createRadialGradient(dot.x-dot.r/3, dot.y-dot.r/3, dot.r*0.2, dot.x, dot.y, dot.r);
+  grd.addColorStop(0, '#fffb7d'); grd.addColorStop(1, '#ff6b6b');
+  ctx.fillStyle = grd; ctx.fill();
+}
+function step(){
+  dot.x += dot.vx; dot.y += dot.vy;
+  if (dot.x - dot.r < 0 || dot.x + dot.r > canvas.width) dot.vx *= -1;
+  if (dot.y - dot.r < 0 || dot.y + dot.r > canvas.height) dot.vy *= -1;
+  draw();
+  animId = requestAnimationFrame(step);
+}
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const dist2 = (mx-dot.x)*(mx-dot.x) + (my-dot.y)*(my-dot.y);
+  if (dist2 <= dot.r*dot.r) {
+    score += 1;
+    scoreEl.textContent = 'Score: ' + score;
+    // 효과: 작아졌다가 원래로
+    dot.r = Math.max(6, dot.r - 3);
+    // 위치 재설정(살짝 튕김)
+    dot.vx *= 1.15; dot.vy *= 1.15;
+    resetDot();
+  }
+});
+
+/* start / stop */
+function startClickDotGame(){
+  if (running) return;
+  running = true;
+  score = 0; scoreEl.textContent = 'Score: 0';
+  resetDot();
+  animId = requestAnimationFrame(step);
+}
+function stopGame(){
+  running = false;
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+}
+</script>
+</body>
+</html>
